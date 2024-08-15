@@ -60,7 +60,7 @@ async function logPerformanceMetrics(model, data) {
   
     // Measure inference time
     const inferenceStart = performance.now();
-    model.predict(testBatch.xs.reshape([1, 28, 28, 1]));
+    const predictions = model.predict(testBatch.xs.reshape([1, 28, 28, 1]));
     const inferenceEnd = performance.now();
     console.log(`Inference time: ${inferenceEnd - inferenceStart} ms`);
 
@@ -101,7 +101,7 @@ async function showExamples(data) {
 }
 
 async function run() {
-  await tf.setBackend('wasm');
+  await tf.setBackend('cpu');
   console.log('WebGPU backend is being used');
   
   // Define data and model variables in a scope accessible to all functions
@@ -228,33 +228,45 @@ function getModel() {
 
   const classNames = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
 
-function doPrediction(model, data, testDataSize = 500) {
-  const IMAGE_WIDTH = 28;
-  const IMAGE_HEIGHT = 28;
-  const testData = data.nextTestBatch(testDataSize);
-  const testxs = testData.xs.reshape([testDataSize, IMAGE_WIDTH, IMAGE_HEIGHT, 1]);
-  const labels = testData.labels.argMax(-1);
-  const preds = model.predict(testxs).argMax(-1);
-
-  testxs.dispose();
-  return Promise.all([preds.data(), labels.data()]);
-}
+  function doPrediction(model, data, testDataSize = 500) {
+    const IMAGE_WIDTH = 28;
+    const IMAGE_HEIGHT = 28;
+    const testData = data.nextTestBatch(testDataSize);
+    const testxs = testData.xs.reshape([testDataSize, IMAGE_WIDTH, IMAGE_HEIGHT, 1]);
+    const labels = testData.labels.argMax(-1); // Ensure labels are 1D
+    const preds = model.predict(testxs).argMax(-1); // Ensure predictions are 1D
+  
+    testxs.dispose();
+    return Promise.all([preds.data(), labels.data()]);
+  }
 
 
 async function showAccuracy(model, data) {
-  const [preds, labels] = doPrediction(model, data);
+  const [predsArray, labelsArray] = await doPrediction(model, data);
+
+  // Convert the arrays back to tensors
+  const preds = tf.tensor1d(predsArray, 'int32');
+  const labels = tf.tensor1d(labelsArray, 'int32');
+
   const classAccuracy = await tfvis.metrics.perClassAccuracy(labels, preds);
-  const container = {name: 'Accuracy', tab: 'Evaluation'};
+  const container = { name: 'Accuracy', tab: 'Evaluation' };
   tfvis.show.perClassAccuracy(container, classAccuracy, classNames);
 
+  preds.dispose();
   labels.dispose();
 }
 
 async function showConfusion(model, data) {
-  const [preds, labels] = doPrediction(model, data);
-  const confusionMatrix = await tfvis.metrics.confusionMatrix(labels, preds);
-  const container = {name: 'Confusion Matrix', tab: 'Evaluation'};
-  tfvis.render.confusionMatrix(container, {values: confusionMatrix, tickLabels: classNames});
+  const [predsArray, labelsArray] = await doPrediction(model, data);
 
+  // Convert the arrays back to 1D tensors
+  const preds = tf.tensor1d(predsArray, 'int32');
+  const labels = tf.tensor1d(labelsArray, 'int32');
+
+  const confusionMatrix = await tfvis.metrics.confusionMatrix(labels, preds);
+  const container = { name: 'Confusion Matrix', tab: 'Evaluation' };
+  tfvis.render.confusionMatrix(container, { values: confusionMatrix, tickLabels: classNames });
+
+  preds.dispose();
   labels.dispose();
 }
