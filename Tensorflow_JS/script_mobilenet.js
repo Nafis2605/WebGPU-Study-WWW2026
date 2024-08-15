@@ -101,7 +101,7 @@ async function showExamples(data) {
 }
 
 async function run() {
-  await tf.setBackend('webgpu');
+  await tf.setBackend('webgl');
   console.log('WebGPU backend is being used');
   
   // Define data and model variables in a scope accessible to all functions
@@ -129,66 +129,63 @@ async function run() {
   
   document.addEventListener('DOMContentLoaded', run);
 
-function getModel() {
-    const model = tf.sequential();
-    
+  async function getModel() {
     const IMAGE_WIDTH = 28;
     const IMAGE_HEIGHT = 28;
     const IMAGE_CHANNELS = 1;  
-    
-    // In the first layer of our convolutional neural network we have 
-    // to specify the input shape. Then we specify some parameters for 
-    // the convolution operation that takes place in this layer.
-    model.add(tf.layers.conv2d({
-      inputShape: [IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_CHANNELS],
-      kernelSize: 5,
-      filters: 8,
-      strides: 1,
-      activation: 'relu',
-      kernelInitializer: 'varianceScaling'
-    }));
-  
-    // The MaxPooling layer acts as a sort of downsampling using max values
-    // in a region instead of averaging.  
-    model.add(tf.layers.maxPooling2d({poolSize: [2, 2], strides: [2, 2]}));
-    
-    // Repeat another conv2d + maxPooling stack. 
-    // Note that we have more filters in the convolution.
-    model.add(tf.layers.conv2d({
-      kernelSize: 5,
-      filters: 16,
-      strides: 1,
-      activation: 'relu',
-      kernelInitializer: 'varianceScaling'
-    }));
-    model.add(tf.layers.maxPooling2d({poolSize: [2, 2], strides: [2, 2]}));
-    
-    // Now we flatten the output from the 2D filters into a 1D vector to prepare
-    // it for input into our last layer. This is common practice when feeding
-    // higher dimensional data to a final classification output layer.
-    model.add(tf.layers.flatten());
-  
-    // Our last layer is a dense layer which has 10 output units, one for each
-    // output class (i.e. 0, 1, 2, 3, 4, 5, 6, 7, 8, 9).
     const NUM_OUTPUT_CLASSES = 10;
-    model.add(tf.layers.dense({
-      units: NUM_OUTPUT_CLASSES,
-      kernelInitializer: 'varianceScaling',
-      activation: 'softmax'
-    }));
-  
+
+    // Load the MobileNet model, but with adjusted input shape and no top layer (so we can add our own).
+    const proxyUrl = 'https://thingproxy.freeboard.io/fetch/';
+    const modelUrl = 'https://tfhub.dev/google/tfjs-model/imagenet/mobilenet_v2_100_224/classification/3';
+
+    try {
+      const mobilenet = await tf.loadLayersModel('path/to/model.json', {
+          inputShape: [224, 224, 3],
+          includeTop: false,
+      });
+      console.log("Model loaded successfully:", mobilenet);
+  } catch (error) {
+      console.error("Error loading model:", error);
+  };
+
+    // Create a new model with MobileNet as the base and add custom layers for MNIST.
+    const model = tf.sequential();
     
-    // Choose an optimizer, loss function and accuracy metric,
-    // then compile and return the model
-    const optimizer = tf.train.adam();
+    // Resize the input images to fit MobileNet's expected input size (224x224).
+    model.add(tf.layers.resizeBilinear({
+        inputShape: [IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_CHANNELS],
+        size: [224, 224]
+    }));
+    
+    // Convert grayscale images to 3 channels, as MobileNet expects 3-channel images.
+    model.add(tf.layers.conv2d({
+        filters: 3,
+        kernelSize: 1,
+        activation: null,
+    }));
+
+    // Add the MobileNet base model.
+    model.add(mobilenet);
+
+    // Add a global average pooling layer to reduce the dimensionality.
+    model.add(tf.layers.globalAveragePooling2d());
+
+    // Add a dense layer with 10 output units for the MNIST classes.
+    model.add(tf.layers.dense({
+        units: NUM_OUTPUT_CLASSES,
+        activation: 'softmax'
+    }));
+
+    // Compile the model.
     model.compile({
-      optimizer: optimizer,
-      loss: 'categoricalCrossentropy',
-      metrics: ['accuracy'],
+        optimizer: tf.train.adam(),
+        loss: 'categoricalCrossentropy',
+        metrics: ['accuracy'],
     });
-  
+
     return model;
-  }
+}
 
   async function train(model, data) {
     const metrics = ['loss', 'val_loss', 'acc', 'val_acc'];
@@ -198,8 +195,8 @@ function getModel() {
     const fitCallbacks = tfvis.show.fitCallbacks(container, metrics);
     
     const BATCH_SIZE = 512;
-    const TRAIN_DATA_SIZE = 55000;
-    const TEST_DATA_SIZE = 10000;
+    const TRAIN_DATA_SIZE = 5500;
+    const TEST_DATA_SIZE = 1000;
   
     const [trainXs, trainYs] = tf.tidy(() => {
       const d = data.nextTrainBatch(TRAIN_DATA_SIZE);
