@@ -102,7 +102,7 @@ async function showExamples(data) {
 }
 
 async function run() {
-  tf.wasm.setThreadsCount(3);
+  tf.wasm.setThreadsCount(4);
   // Set the backend to WASM
   await tf.setBackend('wasm');
   console.log('WASM backend is being used');
