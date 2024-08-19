@@ -1,4 +1,4 @@
-import {MnistData} from './data.js';
+import {MnistData} from './data_mnist.js';
 
 //tf.setBackend('webgl').then(() => {
   //console.log('WebGL backend set');

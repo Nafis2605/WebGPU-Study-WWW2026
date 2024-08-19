@@ -24,24 +24,23 @@
   -->
 
   <!-- Adds the WASM backend to the global backend registry -->
- <!--
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm/dist/tf-backend-wasm.js"></script>
--->
+
 
   <!-- Import the WebGPU backend -->
    <!--
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgpu@latest/dist/tf-backend-webgpu.min.js"></script>
-  -->
+-->
 
   <!-- Import the data file -->
-  <script src="data.js" type="module"></script>
+  <script src="./CIFAR_10/data_cifar10.js" type="module"></script>
 
   <!-- Import the main script file -->
-  <script src="script_wasm.js" type="module"></script>
+  <script src="./CIFAR_10/script_mobilenet_cifar10.js" type="module"></script>
 
 </head>
 <body>
 </body>
 </html>
 
-<!-- http://127.0.0.1:5500/Tensorflow_JS/index.html -->
+<!-- http://127.0.0.1:5500/Tensorflow_JS/index.html -->   

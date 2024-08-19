@@ -1,4 +1,4 @@
-import {MnistData} from './data.js';
+import {MnistData} from './data_mnist.js';
 
 //tf.setBackend('webgl').then(() => {
   //console.log('WebGL backend set');
@@ -93,7 +93,8 @@ async function showExamples(data) {
     canvas.width = 28;
     canvas.height = 28;
     canvas.style = 'margin: 4px;';
-    await tf.browser.draw(imageTensor, canvas);
+    //await tf.browser.draw(imageTensor, canvas);
+    await tf.browser.toPixels(imageTensor, canvas);
     surface.drawArea.appendChild(canvas);
 
     imageTensor.dispose();
@@ -101,8 +102,11 @@ async function showExamples(data) {
 }
 
 async function run() {
-  await tf.setBackend('cpu');
-  console.log('CPU backend is being used');
+  tf.wasm.setThreadsCount(3);
+  // Set the backend to WASM
+  await tf.setBackend('wasm');
+  console.log('WASM backend is being used');
+  console.log('Thread count:', tf.wasm.getThreadsCount());
   
   // Define data and model variables in a scope accessible to all functions
   const data = new MnistData();
