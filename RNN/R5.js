@@ -97,15 +97,15 @@ async function showExamples(data) {
     canvas.width = 32;
     canvas.height = 32;
     canvas.style = 'margin: 4px;';
-    await tf.browser.toPixels(imageTensor, canvas); // WebGL & WASM
-    //await tf.browser.draw(imageTensor, canvas); // WebGPU & CPU
+    //await tf.browser.toPixels(imageTensor, canvas); // WebGL & WASM
+    await tf.browser.draw(imageTensor, canvas); // WebGPU & CPU
     surface.drawArea.appendChild(canvas);
     imageTensor.dispose();
   }
 }
 
 async function run() {
-  await tf.setBackend('webgl');
+  await tf.setBackend('webgpu');
   //tf.wasm.setThreadsCount(8);
   //await tf.ready();
   //console.log('Thread count:', tf.wasm.getThreadsCount());
@@ -227,9 +227,13 @@ async function train(model, data) {
   };
   const fitCallbacks = tfvis.show.fitCallbacks(container, metrics);
   
-  const BATCH_SIZE = 512;
-  const TRAIN_DATA_SIZE = 40000;
-  const TEST_DATA_SIZE = 10000;
+//  const BATCH_SIZE = 512;
+// const TRAIN_DATA_SIZE = 40000;
+//  const TEST_DATA_SIZE = 10000;
+
+  const BATCH_SIZE = 32;
+  const TRAIN_DATA_SIZE = 5000;
+  const TEST_DATA_SIZE = 1000;
   
   const [trainXs, trainYs] = tf.tidy(() => {
     const d = data.nextTrainBatch(TRAIN_DATA_SIZE);
@@ -250,7 +254,7 @@ async function train(model, data) {
   const history = await model.fit(trainXs, trainYs, {
     batchSize: BATCH_SIZE,
     validationData: [testXs, testYs],
-    epochs: 10,
+    epochs: 1,
     shuffle: true,
     callbacks: fitCallbacks
   });
